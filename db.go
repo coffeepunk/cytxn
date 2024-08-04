@@ -38,15 +38,10 @@ func (dsc DatabaseServiceConfig) Name() string {
 	return dsc.DatabaseName
 }
 
-type DatabaseConnectionConfig struct {
+type DBConnection struct {
 	Target string
 	Name   string
-}
-
-type BasicAuthCredentials struct {
-	Username string
-	Password string
-	Realm    string
+	Auth   neo4j.AuthToken
 }
 
 type Statement struct {
@@ -54,15 +49,15 @@ type Statement struct {
 	Params map[string]interface{}
 }
 
-func NewDBService(details DatabaseConnectionConfig, auth BasicAuthCredentials) (DatabaseService, error) {
-	driver, err := neo4j.NewDriverWithContext(details.Target, neo4j.BasicAuth(auth.Username, auth.Password, auth.Realm))
+func NewDBService(conn DBConnection) (DatabaseService, error) {
+	driver, err := neo4j.NewDriverWithContext(conn.Target, conn.Auth)
 	if err != nil {
 		return nil, err
 	}
 
 	var dsc DatabaseServiceConfig
 	dsc.Ctx = context.Background()
-	dsc.DatabaseName = details.Name
+	dsc.DatabaseName = conn.Name
 	dsc.DriverWithContext = driver
 
 	return dsc, nil

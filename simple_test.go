@@ -18,7 +18,7 @@ func TestQueryRead(t *testing.T) {
 		Params: map[string]interface{}{},
 	}
 
-	ds := DatabaseConnection()
+	ds := GetTestDBService()
 	defer ds.Close()
 
 	result, err := QueryRead(ds, s)
@@ -36,7 +36,7 @@ func TestQueryRead(t *testing.T) {
 }
 
 func TestQueryWrite(t *testing.T) {
-	ds := DatabaseConnection()
+	ds := GetTestDBService()
 	defer ds.Close()
 	defer CleanUp()
 
