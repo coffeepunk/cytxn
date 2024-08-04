@@ -1,57 +1,10 @@
 package cytxn
 
 import (
-	"encoding/json"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
-	"log"
-	"os"
 	"reflect"
 	"testing"
 )
-
-type TestConfig struct {
-	Target   string
-	Name     string
-	Username string
-	Password string
-	Realm    string
-}
-
-func GetTestConfig() TestConfig {
-	confFile, errRead := os.ReadFile("./.testconfig.json")
-	if errRead != nil {
-		log.Fatalf("Error reading config file: %v", errRead)
-	}
-
-	var config TestConfig
-	errJson := json.Unmarshal(confFile, &config)
-	if errJson != nil {
-		log.Fatalf("Error parsing config file: %v", errJson)
-	}
-
-	return config
-}
-
-func DatabaseConnection() DatabaseService {
-	config := GetTestConfig()
-
-	details := DatabaseConnectionConfig{
-		Target: config.Target,
-		Name:   config.Name,
-	}
-	auth := BasicAuthCredentials{
-		Username: config.Username,
-		Password: config.Password,
-		Realm:    config.Realm,
-	}
-
-	dbService, err := NewDBService(details, auth)
-	if err != nil {
-		log.Fatalf("Error creating database service: %v", err)
-	}
-
-	return dbService
-}
 
 func TestQueryRead(t *testing.T) {
 	want := neo4j.EagerResult{
@@ -79,5 +32,45 @@ func TestQueryRead(t *testing.T) {
 
 	if want.Records != nil && len(want.Records) != len(result.Records) {
 		t.Errorf("got %v, want %v", result, &want)
+	}
+}
+
+func TestQueryWrite(t *testing.T) {
+	ds := DatabaseConnection()
+	defer ds.Close()
+	defer CleanUp()
+
+	s := Statement{
+		Query:  `CREATE (t:TestNode {id: "1234", name: "This is a test node"}) RETURN t AS node`,
+		Params: map[string]interface{}{},
+	}
+
+	result, err := QueryWrite(ds, s)
+	if err != nil {
+		t.Error(err)
+	}
+
+	want := neo4j.EagerResult{
+		Keys:    []string{"node"},
+		Records: []*neo4j.Record{},
+		Summary: nil,
+	}
+
+	if want.Keys != nil && !reflect.DeepEqual(result.Keys, want.Keys) {
+		t.Errorf("got %v, want %v", result.Keys, want.Keys)
+	}
+
+	if len(result.Records) != 1 {
+		t.Errorf("got %v, want %v", len(result.Records), 1)
+	}
+
+	node, _ := result.Records[0].Get("node")
+	props := node.(neo4j.Node).Props
+	if props["id"] != "1234" {
+		t.Errorf("got %v, want %v", props["id"], "1234")
+	}
+
+	if props["name"] != "This is a test node" {
+		t.Errorf("got %v, want %v", props["name"], "This is a test node")
 	}
 }
